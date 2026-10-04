@@ -278,8 +278,19 @@ io_connect_t IORegisterForSystemPower ( void * refcon,
     obj = IORegistryEntryFromPath( IO_OBJECT_NULL,
                     kIOPowerPlane ":/IOPowerConnection/IOPMrootDomain");
 
+#ifdef DARLING
+    // Darling's registry has no IOPMrootDomain, so there is nothing to connect to and no power
+    // notification will ever arrive. Callers that cannot fail on macOS (Chromium's power monitor)
+    // add the port's run loop source without checking the result, so still hand back the port:
+    // it is valid and silent. The return value stays IO_OBJECT_NULL.
+    if (obj == IO_OBJECT_NULL && notify != NULL) {
+        *thePortRef = notify;
+        return IO_OBJECT_NULL;
+    }
+#endif
+
     if( obj == IO_OBJECT_NULL) goto failure_exit;
-    
+
     kr = IOServiceOpen( obj,mach_task_self(), 0, &fb);
 
     if ( (kr != kIOReturnSuccess) || (fb == IO_OBJECT_NULL) )  {
